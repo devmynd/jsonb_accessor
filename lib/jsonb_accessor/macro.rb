@@ -3,7 +3,7 @@
 module JsonbAccessor
   module Macro
     module ClassMethods
-      def jsonb_accessor(jsonb_attribute, field_types)
+      def jsonb_accessor(jsonb_attribute, field_types, field_namespace = nil)
         names_and_store_keys = field_types.each_with_object({}) do |(name, type), mapping|
           _type, options = Array(type)
           mapping[name.to_s] = (options.try(:delete, :store_key) || name).to_s
@@ -11,8 +11,14 @@ module JsonbAccessor
 
         # Defines virtual attributes for each jsonb field.
         field_types.each do |name, type|
-          attribute name, *type
+          namespaced_name = field_namespace.blank? ? name : field_namespace.to_s + name.to_s
+          attribute namespaced_name.to_sym, *type
         end
+
+        # Defines an accessor for the namespaced jsonb field.
+        # unless field_namespace.blank?
+        #   attribute field_namespace.to_s.to_sym, Hash
+        # end
 
         store_key_mapping_method_name = "jsonb_store_key_mapping_for_#{jsonb_attribute}"
         # Defines methods on the model class
@@ -30,7 +36,8 @@ module JsonbAccessor
         names_and_defaults = field_types.each_with_object({}) do |(name, type), mapping|
           _type, options = Array(type)
           field_default = options.try(:delete, :default)
-          mapping[name.to_s] = field_default unless field_default.nil?
+          namespaced_name = field_namespace.blank? ? name.to_s : field_namespace.to_s + name.to_s
+          mapping[namespaced_name] = field_default unless field_default.nil?
         end
 
         # Get store keys to default values mapping
@@ -52,9 +59,12 @@ module JsonbAccessor
         setters = Module.new do
           # Overrides the setter created by `attribute` above to make sure the jsonb attribute is kept in sync.
           names_and_store_keys.each do |name, store_key|
-            define_method("#{name}=") do |value|
+            namespaced_name = (field_namespace.blank? ? name.to_s : field_namespace.to_s + name.to_s).to_sym
+
+            define_method("#{namespaced_name}=") do |value|
               super(value)
-              new_values = (public_send(jsonb_attribute) || {}).merge(store_key => public_send(name))
+              new_value = field_namespace.blank? ? { store_key => public_send(namespaced_name) } : { field_namespace => { store_key => public_send(namespaced_name) } }
+              new_values = (public_send(jsonb_attribute) || {}).merge(new_value)
               write_attribute(jsonb_attribute, new_values)
             end
           end
@@ -81,7 +91,10 @@ module JsonbAccessor
             jsonb_values = public_send(jsonb_attribute) || {}
             jsonb_values.each do |store_key, value|
               name = names_and_store_keys.key(store_key)
-              write_attribute(name, value) if name
+              if name
+                namespaced_name = (field_namespace.blank? ? name.to_s : field_namespace.to_s + name.to_s).to_sym
+                write_attribute(namespaced_name, value)
+              end
             end
             clear_changes_information if persisted?
           end
