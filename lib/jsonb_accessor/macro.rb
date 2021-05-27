@@ -65,7 +65,15 @@ module JsonbAccessor
           names_and_store_keys.each do |name, store_key|
             define_method("#{name}=") do |value|
               super(value)
-              new_values = (public_send(jsonb_attribute) || {}).merge(store_key => public_send(name))
+
+              attribute_value = public_send(name)
+              # Rails always saves time based on `default_timezone`. Since #as_json considers timezone, manual conversion is needed
+              if attribute_value.acts_like?(:time)
+                default_timezone = ActiveRecord::Base.default_timezone
+                attribute_value = (default_timezone == :utc ? attribute_value.utc : attribute_value.in_time_zone).strftime("%FT%R:%S.%LZ")
+              end
+
+              new_values = (public_send(jsonb_attribute) || {}).merge(store_key => attribute_value)
               write_attribute(jsonb_attribute, new_values)
             end
           end

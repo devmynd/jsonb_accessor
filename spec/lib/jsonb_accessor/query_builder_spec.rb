@@ -202,9 +202,9 @@ RSpec.describe JsonbAccessor::QueryBuilder do
     end
   end
 
-  describe "#jsonb_time_where" do
-    let!(:early_record) { Product.create!(made_at: 10.days.ago) }
-    let!(:late_record) { Product.create!(made_at: 2.days.from_now) }
+  describe "#jsonb_time_where", tz: "America/Sao_Paulo" do
+    let!(:early_record) { Product.create!(made_at: 10.minutes.ago) }
+    let!(:late_record) { Product.create!(made_at: 2.minutes.from_now) }
     subject { Product.all }
 
     context "given an invalid column name" do
@@ -236,9 +236,9 @@ RSpec.describe JsonbAccessor::QueryBuilder do
     end
   end
 
-  describe "#jsonb_time_where_not" do
-    let!(:early_record) { Product.create!(made_at: 10.days.ago) }
-    let!(:late_record) { Product.create!(made_at: 2.days.from_now) }
+  describe "#jsonb_time_where_not", tz: "America/Sao_Paulo" do
+    let!(:early_record) { Product.create!(made_at: 10.minutes.ago) }
+    let!(:late_record) { Product.create!(made_at: 2.minutes.from_now) }
     subject { Product.all }
 
     context "given an invalid column name" do
